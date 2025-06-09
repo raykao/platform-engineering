@@ -11,7 +11,7 @@
   * [Part 3: Deploy a Cloud Native App with a Full App Environment in Azure](readme3.md)
 
 ## Introduction and motivation
-When I started in the platform engineering journey I had familarity with Terraform and pipelines such as GitHub Actions, Azure DevOps and challenged myself to enable some key platform engineering self service scenarios building on some popular cloud native OSS tools on Azure and callout some of learnings.
+When I started in the platform engineering journey I had familarity with Terraform and automation runners such as GitHub Actions, Azure DevOps Pipelines and challenged myself to enable some key platform engineering self service scenarios building on some popular cloud native OSS tools on Azure and callout some of learnings.
 
 With the emergence of platform engineering practices and associated cloud native tooling there is a lot to consider, especially if you are not so familar, it feels bewildering when you start, for example, which tools should I evaluate, what do they do, how do I integrate them. You may review really great frameworks that build a lot of the functionality out for you, but if you don't understand how the tools integrate it makes it hard to adopt them and modify them for your own purpose.
 
@@ -42,11 +42,11 @@ For the initial release of this document we are going to focus on:
 * Cloud native Infrastructure as Code (IaC)
 * GitOps Continous deployment tooling to deploy apps and infra.
 
-You will also need a repositry for configurations, we will use GitHub but not cover this.
+You will also need a repositry for configurations, we will use GitHub here in our examples, but not cover how to use GitHub as a platform in this guide.
 
 ### Infrastructure as Code
 There are multiple IaC choices that are available, for example:
-Cloud Native IaC - these are installed on K8 “management” clusters and cloud resources are represented as custom resources in K8s.
+Cloud Native IaC - these are installed on a K8s “management” cluster (a standalone K8s cluster used as a meta control plane) and cloud resources are represented as custom resources in K8s.
 * [CAPI](https://cluster-api.sigs.k8s.io) – The cluster API (CAPI) framework and language has 30+ providers (e.g. AWS, GCP, bare metal) enabling IaC in a similar language and common core code base. The cluster api provider for Azure (CAPZ)  allows you to deploy self-managed K8s on Azure and AKS clusters.  
 * [ASO v2](https://azure.github.io/azure-service-operator/) - Azure Service Operator, you can deploy many Azure resources, not just AKS.  This is also now deployed by default along with and utilized as a dependency by CAPZ.
 * [Crossplane](https://www.crossplane.io) - you can deploy resources into multiple clouds, this is the tool we will demonstrate due to it's multicloud capabilties, however you can swap this out for any of the above tools.
@@ -62,12 +62,12 @@ All of these tools require a Kubernetes (K8s) cluster that will host them, typic
 #### Cloud Native IaC considerations
 * K8s cluster & experience – Ops teams need to grow skills in maintaining K8s infrastructure management clusters.
 * Getting started – Ops teams will need to learn how to define resources in cloud native templates.
-* Existing investments – this document is not suggesting that you should scrap existing investments, you should review how the technincal benefits provide business value and start small. You can perform self-service using existing deployment pipeline technologies such as GitHub Actions, DevOps and IaC tools such as Terraform, Bicep, ARM templates etc.
+* Existing investments – this document is not suggesting that you should scrap existing investments, you should review how the technincal benefits provide business value and start small. You can perform self-service using existing deployment pipeline technologies such as GitHub Actions, Azure DevOps Pipelines and IaC tools such as Terraform, Bicep, ARM templates etc.
 
 ### Continuous Deployment (CD) Pipelines
-For this we are are going to use GitOps based CD pipelines, popular tools examples, Argo, Tekton, Flux. These tools  reconcile the infra or application configuration in a repositry with the K8s cluster.
+For this we are are going to use pull based GitOps agents for CD pipelines of our platform.  Popular tools in this space include: Argo, Tekton and Flux. These tools will reconcile the infra or application configuration that is stored in a Git repositry as the source of truth, while leveraging a Kubernetes cluster as the control plane to ensure that the deployed resources always reflect the declarative state stored in the Git repository.
 
-We will use [Argo](https://argoproj.github.io) in the example, but you can use other tools, the main benefit of GitOps is scale, configuration portabiltiy, drift detection, automation, auditing and approval etc. A key difference between GitOps and other CD pipelines such as Jenkins, GHA, DevOps is that they are push based pipelines that run outside of the K8s cluster, requiring connectivity details for the K8s cluster. Whereas with GitOps tools have an agent that is installed on the cluster and you add a configuration to the agent, it will then reach out to a configuration repo and 'pull' in the configuration. There is a lot more detail in this area, for more information take a look [here](https://opengitops.dev/) as well as the project content.
+We will use [Argo](https://argoproj.github.io) in this example project, but you can use other tools. The main benefit of this pull based agent model of GitOps is scale, configuration portabiltiy, drift detection, automation, auditing and approval gates. A key difference between pull based GitOps and other traditional push based CD pipelines such as Jenkins, GitHub Actions, Azure DevOps Pipelines is that they run outside of the K8s cluster, requiring connectivity details for the K8s cluster. This is in contrast to pull based GitOps tools, that have an agent installed on a cluster and you provide it with Git repo credentials/connection settings for the agent to connect to, which allows it to leverage the Git repo as a configuration source of truth.  The agent is now able to 'pull' configuration in from the repo. There is a lot more detail in this area, for more information take a look [here](https://opengitops.dev/) as well as the project content.
 
 
 Lets get building.....
@@ -75,7 +75,7 @@ Lets get building.....
 ## Part 1: Create, Configure Mgmt Cluster, Repo, Tools and Deploy Infra
 
 ### Tooling & purpose
-* Cloud native IaC tool - this tool will enable the LCM of infra resources across any clouds you chose, for this example we are going to show Crossplane.
+* Cloud native IaC tool - this tool will enable the Life Cycle Management (LCM) of infra resources across any clouds you chose, for this example we are going to show Crossplane.
 * GitOps - this tool will reconcile the infra configuration in a repositry with the management cluster and ensure the configuration is applied. We will use Argo in the example, but you can use other tools.
 * Management AKS cluster - this is required for GitOps and IaC tooling, in this example we're going to use a generic AKS cluster.
 * Repo - this is where you will host your configurations for:
