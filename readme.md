@@ -103,10 +103,12 @@ You should evaluate which mode is most appropriate for your security requirement
 
 ```bash
 # set vars
-mgmtClusterName=main-infra002
+mgmtClusterName=main-infra001
 resourceGroup=rg-infra-01
 location=westus2
+# K8s Control Plane UAI
 cpAksUai=cp-infra002-uai
+# Kubelet UAI
 kblAksUai=kbl-infra002-uai
 
 # create resource group
@@ -179,7 +181,7 @@ kubectl describe providers.pkg.crossplane.io provider-azure
 4. Setting up provider permissions to Azure
 Depending on what option you decided in Step #2 you need to ensure that identity has permissions to Azure and what are the scope of those permissions that are required for the job, and meet your corporate security requirements. 
 
-In this example we are going to assume a team has thier own Azure subscription and we will grant 'Contributor' permissions to the AKS UAI on the subscription. Note, this is NOT recommended, it is for demonstration purposes. You **must** be conservative and just grant the identity contributor to a resource group or custom role, however you may find that deployments may require permissions outside of the resource group, or you may even wish to have Crossplane create RG's with RBAC etc.
+In this example we are going to assume a team has their own Azure subscription and we will grant 'Contributor' permissions to the AKS UAI on the subscription. Note, this is NOT recommended, it is for demonstration purposes. You **must** be conservative and just grant the identity contributor to a resource group or custom role, however you may find that deployments may require permissions outside of the resource group, or you may even wish to have Crossplane create RG's with RBAC etc.
 
 ```bash
 subscriptionID=$(az account show --query id --output tsv)
@@ -275,7 +277,8 @@ Anytime you want Argo to connect to a repo and reconcile a repo configuration an
 * Team Projects - Team application environment configurations.
 
 ## Creating Argo Apps
-1. Connect to Argo
+
+### 1. Connect to Argo
 In a separate Terminal start a port fwd to ArgoCD:
 ```bash
 kubectl port-forward svc/argocd-server -n argocd 8080:443
@@ -288,7 +291,7 @@ argocd admin initial-password -n argocd
 argocd login localhost:8080
 ```
 
-2. Create an Argo App for the managing the Crossplane provider configuration
+### 2. Create an Argo App for the managing the Crossplane provider configuration
   
 **Ensure you have the configuration**
 In the [/mgmtCluster/bootstrap/control-plane/addons directory](https://github.com/danielsollondon/platform-engineering/tree/main/end2end-cp/mgmtCluster/bootstrap/control-plane) is already an example crossplane provider configuration: `crossplane-provider-config.yaml`.
@@ -301,7 +304,7 @@ And check each version:
 
 ![alt text](imgs/image-10.png)
 
-**Create an Argo App**
+#### Create an Argo App
 
 The application will reconcile the crossplane configuration to the management cluster and ensure the providers are installed:
 
@@ -313,7 +316,7 @@ argocd app create crossplane-prov-config --repo https://github.com/danielsollond
 argocd app set crossplane-prov-config --sync-policy auto
 ```
 
-**Check the status of the Argo app**
+#### Check the status of the Argo app
 
 You can do this from the commandline:
 ```bash
@@ -324,7 +327,7 @@ Or go to the UI: https://localhost:8080/applications
 ![alt text](imgs/image-4.png)
 
 
-3. Create an Argo App for creating and life cycle managing the downstream clusters
+### 3. Create an Argo App for creating and life cycle managing the downstream clusters
 
 Now you need an app that will be responsible for creating the K8s clusters and their resources. For this we will use an Argo App configuration in Helm chart that reconciles a directory that will contain different infrastructure configurations for different teams. 
 
@@ -410,15 +413,16 @@ spec:
 ```
 * Commit it to the main branch (as per the previous steps)
 * Check the cluster was created, it will take a few minutes, you can look in the resource group or run: `kubectl describe kubernetescluster.containerservice.azure.upbound.io/test-clu1`
-* Levae the cluster running for the next steps!
+* Leave the cluster running for the next steps!
 
 
-> Note! 
-  * As you progress with Crossplane and Azure there will be properties that you want Crossplane to intially set and not to track, for example, extensions, observability configurations, Tags etc, in the same way you can do with `ignore_changes` in Terraform. For more information on how to handle that, see the [Appendix:Properties that you want Crossplane to intially set and not to track]().
-  * When you review the API documentation, you will see similarities with parameters in CLI and TF, but just be aware there are differences and if you are migrating to Crossplane you will need to check each parameter and how they are are set.
+>[!NOTE]
+> * As you progress with Crossplane and Azure there will be properties that you want Crossplane to intially set and not to track, for example, extensions, observability configurations, Tags etc, in the same way you can do with `ignore_changes` in Terraform. For more information on how to handle that, see the [Appendix:Properties that you want Crossplane to intially set and not to track]().
+> * When you review the API documentation, you will see similarities with parameters in CLI and TF, but just be aware there are differences and if you are migrating to Crossplane you will need to check each parameter and how they are are set.
 
 
-2. Configuring the Crossplane Created Cluster with Argo
+### 4. Configuring the Crossplane Created Cluster with Argo
+
 When creating an AKS cluster in the Azure Portal you have the option of using the [AKS GitOps extension](https://learn.microsoft.com/en-us/azure/azure-arc/kubernetes/tutorial-use-gitops-flux2?tabs=azure-cli) to configure the cluster, here we are going to show you how you can use Crossplane to configure the cluster instead. 
 
 Lets build on the example if the cluster creation above, to install Argo and an Argo App we will need to use an additional providers, in this case we will use two:
